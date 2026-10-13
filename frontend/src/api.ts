@@ -27,6 +27,23 @@ export interface Citation {
   page: number | null;
   // The retrieved text, truncated for display.
   excerpt: string;
+  // Similarity to the question, 0..1 (higher = closer match).
+  score: number;
+}
+
+// A past conversation in the history list.
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+// One saved message. Assistant messages carry the citations they used.
+export interface StoredMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: Citation[];
 }
 
 // Response of `POST /chat`.
@@ -107,7 +124,18 @@ export const api = {
   // `DELETE /documents/{id}`: removes the document, its indexed chunks and the stored file.
   remove: (id: string) => request<void>(`/documents/${id}`, { method: "DELETE" }),
 
-  // `POST /chat`: ask a question about your documents; omit conversation_id to start a new chat.
-  chat: (question: string, conversation_id?: string) =>
-    request<ChatResult>("/chat", json({ question, conversation_id })),
+  /** `POST /chat`: ask about your documents. Omit conversation_id to start a new chat;
+   *  pass document_ids to search only those documents. */
+  chat: (question: string, conversation_id?: string, document_ids?: string[]) =>
+    request<ChatResult>("/chat", json({ question, conversation_id, document_ids })),
+
+  /** `GET /auth/me`: the signed-in user (used to show the email in the header). */
+  me: () => request<{ id: string; email: string }>("/auth/me"),
+
+  /** `GET /conversations`: past chats, newest first. */
+  conversations: () => request<ConversationSummary[]>("/conversations"),
+
+  /** `GET /conversations/{id}`: a chat with all its messages. */
+  conversation: (id: string) =>
+    request<ConversationSummary & { messages: StoredMessage[] }>(`/conversations/${id}`),
 };
